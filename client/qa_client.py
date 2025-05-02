@@ -27,8 +27,12 @@ async def main():
             print("Available tools:", [tool.name for tool in response.tools])
             
             # Call the greet tool
-            response = await session.call_tool("Generate BDD", {"description": "Registration feature"})
-            print("BDD for Registration:", response["results"])
+            result = await session.call_tool("greet", {"name": "Alice"})
+            print("Greeting result:", result.content)
+
+            # Call the greet tool
+            response = await session.call_tool("generate_bdd_for_features", {"description": "Registration feature"})
+            print("BDD for Registration:", response.content)
             
 
 if __name__ == "__main__":
