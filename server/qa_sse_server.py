@@ -1,5 +1,6 @@
 # sse_server.py
 from browser_use import Agent as BrowserUseAgent
+from browser_use.browser.context import BrowserContextConfig
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import SecretStr
 from mcp.server.fastmcp import FastMCP
@@ -34,8 +35,13 @@ async def run_browser_use_tool(bdd_steps:str):
     agent = BrowserUseAgent(
         task=bdd_steps,
         llm=llm,
-    )
-    await agent.run()
+        max_actions_per_step=1,
+        )
+    history = await agent.run()
+    #logger.info(f"Input Token Count: {history.input_token_usage}")
+    #logger.info(f"Total Input Tokens: {history.total_input_tokens}")
+    logger.info(f"Result from BrowserUseAgent: {history.final_result()}")
+    return history.final_result()
 
 @mcp.tool()
 def greet(name: str) -> str:
@@ -114,8 +120,8 @@ if __name__ == "__main__":
     starlette_app = create_starlette_app(mcp_server, debug=True)
     
     port = 8080
-    print(f"Starting MCP server with SSE transport on port {port}...")
-    print(f"SSE endpoint available at: http://localhost:{port}/sse")
+    logger.info(f"Starting MCP server with SSE transport on port {port}...")
+    logger.info(f"SSE endpoint available at: http://localhost:{port}/sse")
     
     # Run the server using uvicorn
     uvicorn.run(starlette_app, host="0.0.0.0", port=port)
