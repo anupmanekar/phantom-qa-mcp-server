@@ -1,5 +1,5 @@
 # sse_server.py
-from browser_use import Agent as BrowserUseAgent
+from browser_use import Agent as BrowserUseAgent, Browser, BrowserConfig
 from browser_use.browser.context import BrowserContextConfig
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import SecretStr
@@ -25,17 +25,22 @@ rag_service_url = os.getenv("RAG_SERVICE_URL", "https://0.0.0.0:8080")
 
 # Create the MCP server
 mcp = FastMCP("QA MCP SSE Server")
-
-llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", api_key=SecretStr(api_key))
+    
+llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash")
 
 @mcp.tool()
-async def run_browser_use_tool(bdd_steps:str):
+async def run_browser_use_tool(instructions:str):
     """ This tool is used to run the browser use tool."""
-    logger.info(f"Received BDD steps: {bdd_steps}")
+    logger.info(f"Received BDD steps: {instructions}")
+    config = BrowserConfig(
+        headless=True
+    )
+    browser = Browser(config)
     agent = BrowserUseAgent(
-        task=bdd_steps,
-        llm=llm,
-        max_actions_per_step=1,
+            browser=browser,
+            task=instructions,
+            llm=llm,
+            max_failures=1
         )
     history = await agent.run()
     #logger.info(f"Input Token Count: {history.input_token_usage}")
@@ -112,16 +117,15 @@ def create_starlette_app(mcp_server: Server, *, debug: bool = False) -> Starlett
         ],
     )
 
+
+mcp_server = mcp._mcp_server
+starlette_app = create_starlette_app(mcp_server, debug=True)
+
 if __name__ == "__main__":
-    # Get the underlying MCP server
-    mcp_server = mcp._mcp_server
-    
-    # Create Starlette app with SSE support
-    starlette_app = create_starlette_app(mcp_server, debug=True)
-    
     port = 8080
     logger.info(f"Starting MCP server with SSE transport on port {port}...")
     logger.info(f"SSE endpoint available at: http://localhost:{port}/sse")
     
-    # Run the server using uvicorn
+    # # Run the server using uvicorn
     uvicorn.run(starlette_app, host="0.0.0.0", port=port)
+    #asyncio.run(run_browser_use_tool("Open Google and search for 'Python programming'"))
