@@ -1,6 +1,6 @@
 # sse_server.py
-from browser_use import Agent as BrowserUseAgent, Browser, BrowserConfig
-from browser_use.browser.context import BrowserContextConfig
+from browser_use import Agent as BrowserUseAgent
+from browser_use import BrowserProfile, BrowserSession
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import SecretStr
 from mcp.server.fastmcp import FastMCP
@@ -21,7 +21,6 @@ logger = getLogger(__name__)
 
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
-rag_service_url = os.getenv("RAG_SERVICE_URL", "https://0.0.0.0:8080")
 
 # Create the MCP server
 mcp = FastMCP("QA MCP SSE Server")
@@ -32,15 +31,19 @@ llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash")
 async def run_browser_use_tool(instructions:str):
     """ This tool is used to run the browser use tool."""
     logger.info(f"Received BDD steps: {instructions}")
-    config = BrowserConfig(
-        headless=True
+    base_config = BrowserProfile(
+        wait_between_actions= 1,
+        highlight_elements=False,
+        wait_for_network_idle_page_load_time =2,
+        save_recording_path= "./recordings",
     )
-    browser = Browser(config)
+    
     agent = BrowserUseAgent(
-            browser=browser,
             task=instructions,
             llm=llm,
-            max_failures=1
+            max_failures=2,
+            browser_session=BrowserSession(browser_profile=base_config),
+            generate_gif=True,
         )
     history = await agent.run()
     #logger.info(f"Input Token Count: {history.input_token_usage}")
@@ -58,40 +61,6 @@ def greet(name: str) -> str:
 def add(a: int, b: int) -> str:
     """Add two numbers and return the result"""
     return f"The sum of {a} and {b} is {a + b}."
-
-@mcp.tool()
-def generate_bdd_for_features(description: str) -> str:
-    """Generate BDD for features."""
-    # Placeholder for actual BDD generation logic
-    logger.info(f"rag_service_url: {rag_service_url}")
-    url = f"{rag_service_url}/generate-bdd-for-features?description={description}"
-    payload = {}
-    headers = {"Content-Type": "application/json"}
-
-    try:
-        response = requests.get(url, headers=headers)
-        logger.info(f"Response: {response}")
-        logger.info(f"Response JSON: {response.json()}")
-        response.raise_for_status()
-        return {"results": response.json()}
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(f"Error calling API: {e}")
-
-@mcp.tool()
-def generate_bdd_for_ticket_id(ticket_id: str) -> str:
-    """Generate BDD for ticket."""
-    # Placeholder for actual BDD generation logic
-    url = f"{rag_service_url}/generate-bdd-for-ticket?ticket_id={ticket_id}"
-    payload = {}
-    headers = {"Content-Type": "application/json"}
-
-    try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        return {"results": response.json()}
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(f"Error calling API: {e}")
-
 
 def create_starlette_app(mcp_server: Server, *, debug: bool = False) -> Starlette:
     """Create a Starlette application that can serve the MCP server with SSE."""

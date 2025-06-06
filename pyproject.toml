@@ -5,10 +5,10 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "browser-use>=0.1.40",
-    "langchain-google-genai>=2.1.4",
+    "browser-use>=0.2.5",
+    "langchain-google-genai>=2.1.2",
     "mcp[cli]>=1.6.0",
-    "pydantic>=2.11.3",
+    "pydantic==2.10.4",
     "requests>=2.32.3",
     "uvicorn>=0.34.1"
 ]
